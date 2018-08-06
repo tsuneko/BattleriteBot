@@ -12,7 +12,6 @@ modes = {
         "3v3": 3, "3": 3, "3s": 3,
         "any": 0, "both": 0
         }
-modeNames = {2: "2v2", 3: "3v3", 0: "2v2 and 3v3"}
 
 def startMatch(mode, playerList):
         playerMentionList = []
