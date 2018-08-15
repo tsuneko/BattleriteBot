@@ -16,7 +16,10 @@ tournamentFlags = {
         "8" : "BattleCult Week #2 - Participated",
         "16" : "BattleCult Week #3 - 1st",
         "32" : "BattleCult Week #3 - Participated",
-        "64" : "BattleCult Week #3 - Caster"
+        "64" : "BattleCult Week #3 - Caster",
+        "128" : "BattleCult Week #4 - 1st",
+        "256" : "BattleCult Week #4 - Participated",
+        "512" : "BattleCult Week #4 - Caster"
 }
 
 # Definition of Permissions Level
@@ -33,17 +36,18 @@ helpMessage = ("```\n" +
                 "!add - Adds you to the ranked queue\n" +
                 "!remove - Removes you from the ranked queue\n" +
                 "!q - Lists the players currently in queue\n" +
-                "!top - Lists the top 20 players\n" +
+                "!top (x) - Lists the top 10 players, starting at x\n" +
                 "!rank - Displays your current rank\n" +
                 "        !rank [Username] or !rank @DiscordMember can also be used\n" +
                 "!stats - Provides some more details on your stats\n" +
                 "        !stats [Username] or !stats @DiscordMember can also be used\n" +
                 "\n-- Tools --\n" +
-                "!rename [Username] - Changes your username\n" +
+                "!name [Username] - Changes your nickname\n" +
                 "        also will create a new user file if you don't have one\n" +
                 "\n-- Admin --\n" +
                 "!record A1,A2,A3,win,B1,B2,B3 - Records a win for the A players\n" +
                 "        win can be substituted for wint for Tournament Matches\n" +
+                "!cleareQueue - Empties the Queue\n" +
                 "!flagIDs - Lists Flag IDs and their definition\n" +
                 "!addFlag [Username] flag - Adds a flag to a user\n" +
                 "!removeFlag [Username] flag - Removes a flag from a user\n" +
@@ -155,6 +159,12 @@ def getUsername(authorID, args, reqArgs = 0):
                 else:
                         return None
 
+def isAdmin(authorID, reqPerms):
+        if authorID in playersLookup:
+                if int(players[playersLookup[authorID]]["permissionsLevel"]) >= reqPerms:
+                       return True
+        return False
+
 #
 # Create Bot
 #
@@ -168,9 +178,15 @@ f = open("token.txt","r")
 token = f.readline().rstrip()
 f.close()
 
+matchHistoryChannel = []
+
 @bot.event
 async def on_ready():
         print("Connected as: " + bot.user.name + " ID: " + str(bot.user.id))
+        for discordServer in bot.servers:
+                for channel in discordServer.channels:
+                        if channel.name == "match-history":
+                                matchHistoryChannel.append(channel)
 
 # !help - Usage !help
 @bot.command()
@@ -184,25 +200,30 @@ async def perms(context):
                 pUsername = playersLookup[context.message.author.id]
                 await bot.say(pUsername + " your permissions level is: " + permissionsLevel[players[pUsername]["permissionsLevel"]])
 
-# !rename - Usage !rename Username
+# !name - Usage !name Username
 @bot.command(pass_context = True)
-async def rename(context, *args):
+async def name(context, *args):
         pNewUsername = ' '.join(list(args)).rstrip()
         if context.message.author.id in playersLookup:
                 pOldUsername = playersLookup[context.message.author.id]
-                if pNewUsername in players:
-                        return
-                pDataKeys = ["username","id","elo","k","pugMatches","rankedMatches","rankedWins","tournamentMatches","tournamentWins","tournamentFlags","permissionsLevel"]
+                for pUsername in players:
+                        if pUsername.lower() == pNewUsername.lower():
+                                return
+                pDataKeys = ["username","id","elo","rankedMatches","rankedWins","tournamentMatches","tournamentWins","tournamentFlags","permissionsLevel"]
                 players[pNewUsername] = {}
                 for key in pDataKeys:
                         players[pNewUsername][key] = players[pOldUsername][key]
                 players[pNewUsername]["username"] = pNewUsername
                 playersLookup[context.message.author.id] = pNewUsername
-                players[pOldUsername] = {}
-                os.remove("players\\"+pOldUsername+".txt")
+                del players[pOldUsername]
+                os.remove("players\\" + pOldUsername + ".txt")
                 savePlayerData(pNewUsername)
+                await bot.change_nickname(context.message.author, pNewUsername)
+                await bot.say("Changed: " + pOldUsername +"'s name to: " + pNewUsername)
         else:
                 createDefaultPlayerData(context.message.author, pNewUsername)
+                await bot.change_nickname(context.message.author, pNewUsername)
+                await bot.say("Created new user data for: " + pNewUsername)
                 loadPlayerData(pNewUsername)
 
 # !add - Usage !add
@@ -246,10 +267,47 @@ async def remove(context):
 @bot.command()
 async def q():
         await bot.say("Queue (" + str(len(queue))+"/6): `[" + ", ".join(queue) +"]`")
+
+# !clearQueue - Usage !clearQueue
+@bot.command(pass_context = True)
+async def clearQueue(context):
+        if isAdmin(context.message.author.id, 1) == False or len(queue) == 0:
+                return
+        for p in reversed(range(len(queue))):
+                queue.pop(p)
+        await bot.say("Cleared the Queue")
         
-# !top - Usage !top
+        
+# !top - Usage !top (x)
 @bot.command()
-async def top():
+async def top(*args):
+        start = 1
+        if len(args) > 0:
+                args = list(args)
+                if args[0].isdigit():
+                        start = int(args[0])
+        newLeaderboard = createLeaderboard(players)
+        displayedLeaderboard = []
+        i=1
+        actualRank = 1
+        displayedRank = 1
+        currentScore = newLeaderboard[0][1]
+        if start <= len(newLeaderboard): 
+                for value in newLeaderboard:
+                        if value[1] < currentScore:
+                                currentScore = value[1]
+                                displayedRank = actualRank
+                        actualRank = actualRank + 1
+                        if i >= start and i <= start + 9:
+                                displayedLeaderboard.append("#"+str(displayedRank)+" ["+str(value[1])+"] - "+value[0])
+                        i = i + 1
+                await bot.say("```" + "\n".join(displayedLeaderboard).rstrip() + "```")
+        else:
+                await bot.say("There are no leaderboard entries starting at #" + str(start))
+
+# !giveMeTheWholeLeaderboard
+@bot.command()
+async def giveMeTheWholeLeaderboard():
         newLeaderboard = createLeaderboard(players)
         displayedLeaderboard = []
         i=1
@@ -257,8 +315,6 @@ async def top():
         displayedRank = 1
         currentScore = newLeaderboard[0][1]
         for value in newLeaderboard:
-                if i > 20:
-                        break
                 if value[1] < currentScore:
                         currentScore = value[1]
                         displayedRank = actualRank
@@ -266,6 +322,11 @@ async def top():
                 displayedLeaderboard.append("#"+str(displayedRank)+" ["+str(value[1])+"] - "+value[0])
                 i = i + 1
         await bot.say("```" + "\n".join(displayedLeaderboard).rstrip() + "```")
+
+# !beepboop
+@bot.command()
+async def beepboop():
+        await bot.say("No.")
 
 # !rank - Usage !rank, !rank Username, !rank @DiscordMember
 @bot.command(pass_context = True)
@@ -344,13 +405,12 @@ async def stats(context, *args):
                       "Matches Played (TNY): " + str(pTournamentMatches) + " [" + str(pTournamentWins) + "-" + str(pTournamentLosses) + "] (" + str(pTournamentWinRatio) + "%)\n" +
                       pTournamentResultsString + "```")
 
-# !record - Usage !record User1|User2|User3|win/lose|User4|User5|User6
+# !record - Usage !record User1|User2|User3|win/wint|User4|User5|User6
 @bot.command(pass_context = True)
 async def record(context, *args):
         args = ' '.join(list(args)).rstrip().split(',')
-        if context.message.author.id in playersLookup:
-                if int(players[playersLookup[context.message.author.id]]["permissionsLevel"]) < 1:
-                       return
+        if isAdmin(context.message.author.id, 1) == False:
+                return
         if len(args) != 7 or (args[3] != "win" and args[3] != "wint"):
                 return
         for i in range(len(args)):
@@ -359,10 +419,8 @@ async def record(context, *args):
                 if args[i] not in players:
                         await bot.say("```"+args[i] + " is not a valid player"+"```")
                         return
-
         winners = args[0:3]
         losers = args[4:7]
-
         matchPlayers = winners+losers
         for pUsername in matchPlayers:
                 players[pUsername]["rankedMatches"] = str(int(players[pUsername]["rankedMatches"]) + 1)
@@ -371,8 +429,7 @@ async def record(context, *args):
                 if pUsername in winners:
                         players[pUsername]["rankedWins"] = str(int(players[pUsername]["rankedWins"]) + 1)
                         if args[3] == "wint":
-                                players[pUsername]["tournamentWins"] = str(int(players[pUsername]["tournamentWins"]) + 1)
-                
+                                players[pUsername]["tournamentWins"] = str(int(players[pUsername]["tournamentWins"]) + 1)  
         tournamentString = ""
         if args[3] == "wint":
                 tournamentString = "Tournament "
@@ -388,6 +445,42 @@ async def record(context, *args):
         await bot.say("`" + ", ".join(winners) + "`\n**Win VS**\n`" + ", ".join(losers) + "`\n\n" + tournamentString + "Match Recorded. Elo Changes:\n```" + "\n".join(eloChange).rstrip() + "```")
         for p in matchPlayers:
                 savePlayerData(p)
+        for channel in matchHistoryChannel:
+                await bot.send_message(channel, "```" + context.message.content + "```")
+
+# !sortTeams - Usage !sortTeams @DiscordRole role
+@bot.command(pass_context = True)
+async def sortTeams(context, role : discord.Role):
+        if context.message.author.id in playersLookup:
+                if int(players[playersLookup[context.message.author.id]]["permissionsLevel"]) < 2:
+                       return
+        tournamentPlayers = {}
+        for discordMember in context.message.author.server.members:
+                if role in discordMember.roles:
+                        if discordMember.id in playersLookup:
+                                pUsername = playersLookup[discordMember.id]
+                                tournamentPlayers[pUsername] = players[pUsername]["elo"]
+        if len(tournamentPlayers) %3 != 0:
+                await bot.say("The amount of " + role.name + " players must be divisible by 3. Currently: " + str(len(tournamentPlayers)))
+                return
+        tournamentPlayersSorted = list(reversed(sorted(tournamentPlayers.items(), key = lambda x: x[1])))
+        tournamentTeamCount = len(tournamentPlayersSorted)//3
+        tournamentDiv1 = []
+        for i in range(tournamentTeamCount):
+                tournamentDiv1.append(tournamentPlayersSorted[i][0])
+        random.shuffle(tournamentDiv1)
+        tournamentDiv2 = []
+        for i in range(tournamentTeamCount,tournamentTeamCount*2):
+                tournamentDiv2.append(tournamentPlayersSorted[i][0])
+        random.shuffle(tournamentDiv2)
+        tournamentDiv3 = []
+        for i in range(tournamentTeamCount*2,tournamentTeamCount*3):
+                tournamentDiv3.append(tournamentPlayersSorted[i][0])
+        random.shuffle(tournamentDiv3)
+        tournamentTeams = []
+        for i in range(tournamentTeamCount):
+                tournamentTeams.append("Team #" + str(i+1) + ": `" + tournamentDiv1[i] + "," + tournamentDiv2[i] + "," + tournamentDiv3[i] + "`")
+        await bot.say("Tournament Teams:\n" + "\n".join(tournamentTeams) + "\n" + role.mention)
 
 # !flagIDs - Usage: !flagIDs
 @bot.command(pass_context = True)
@@ -407,10 +500,7 @@ async def flagIDs(context):
 async def addFlag(context, *args):
         args = list(args)
         pUsername = getUsername(context.message.author.id, args, 1)
-        print(pUsername)
-        if pUsername == None:
-                return
-        if int(players[playersLookup[context.message.author.id]]["permissionsLevel"]) < 2:
+        if pUsername == None or isAdmin(context.message.author.id, 2) == False:
                 return
         pTournamentFlags = int(players[pUsername]["tournamentFlags"])
         fFlag = args[-1]
@@ -434,9 +524,7 @@ async def addFlag(context, *args):
 async def removeFlag(context, *args):
         args = list(args)
         pUsername = getUsername(context.message.author.id, args, 1)
-        if pUsername == None:
-                return
-        if int(players[pUsername]["permissionsLevel"]) < 2:
+        if pUsername == None or isAdmin(context.message.author.id, 2) == False:
                 return
         pTournamentFlags = int(players[pUsername]["tournamentFlags"])
         fFlag = args[-1]
@@ -462,13 +550,7 @@ async def removeFlag(context, *args):
 async def setPerms(context, *args):
         args = list(args)
         pUsername = getUsername(context.message.author.id, args, 1)
-        if context.message.author.id in playersLookup:
-                if players[playersLookup[context.message.author.id]]["username"] == pUsername or int(players[playersLookup[context.message.author.id]]["permissionsLevel"]) < 3:
-                        return
-        else:
-                return
-        level = args[-1]
-        if level not in permissionsLevel:
+        if isAdmin(context.message.author.id, 3) == False or pUsername == playersLookup[context.message.author.id] or level not in permissionsLevel:
                 return
         players[pUsername]["permissionsLevel"] = str(level)
         savePlayerData(pUsername)
@@ -477,10 +559,7 @@ async def setPerms(context, *args):
 # !resetAllUsers - Usage: !resetAllUsers
 @bot.command(pass_context = True)
 async def resetAllUsers(context):
-        if context.message.author.id in playersLookup:
-                if int(players[playersLookup[context.message.author.id]]["permissionsLevel"]) < 3:
-                        return
-        else:
+        if isAdmin(context.message.author.id, 3) == False:
                 return
         for discordMember in context.message.server.members:
                 createDefaultPlayerData(discordMember)
