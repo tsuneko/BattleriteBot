@@ -19,7 +19,13 @@ tournamentFlags = {
         "64" : "BattleCult Week #3 - Caster",
         "128" : "BattleCult Week #4 - 1st",
         "256" : "BattleCult Week #4 - Participated",
-        "512" : "BattleCult Week #4 - Caster"
+        "512" : "BattleCult Week #4 - Caster",
+        "1024" : "BattleCult Week #5 - 1st",
+        "2048" : "BattleCult Week #5 - Participated",
+        "4096" : "BattleCult Week #5 - Caster",
+        "8192" : "BattleCult Week #5+ - 1st",
+        "16384" : "BattleCult Week #5+ - Participated",
+        "32768" : "BattleCult Week #5+ - Caster"
 }
 
 # Definition of Permissions Level
@@ -30,28 +36,37 @@ permissionsLevel = {
         "3" : "Bot Admin"
 }
 
-helpMessage = ("```\n" +
-               "Please note that all Usernames must be Case Sensitive\n" +
-                "\n-- General Commands --\n" +
-                "!add - Adds you to the ranked queue\n" +
-                "!remove - Removes you from the ranked queue\n" +
-                "!q - Lists the players currently in queue\n" +
-                "!top (x) - Lists the top 10 players, starting at x\n" +
-                "!rank - Displays your current rank\n" +
-                "        !rank [Username] or !rank @DiscordMember can also be used\n" +
-                "!stats - Provides some more details on your stats\n" +
-                "        !stats [Username] or !stats @DiscordMember can also be used\n" +
-                "\n-- Tools --\n" +
-                "!name [Username] - Changes your nickname\n" +
-                "        also will create a new user file if you don't have one\n" +
-                "\n-- Admin --\n" +
-                "!record A1,A2,A3,win,B1,B2,B3 - Records a win for the A players\n" +
-                "        win can be substituted for wint for Tournament Matches\n" +
-                "!cleareQueue - Empties the Queue\n" +
-                "!flagIDs - Lists Flag IDs and their definition\n" +
-                "!addFlag [Username] flag - Adds a flag to a user\n" +
-                "!removeFlag [Username] flag - Removes a flag from a user\n" +
-                "```")
+helpMessageKeys = ["info#1","info#2","!help","!add","!remove","!q","!top","!leaderboard","!rank","!stats","info#3","!name","info#4","!record","!clearQueue","!flagIDs","!addFlag","!removeFlag", "info#5"]
+
+helpMessage = {"info#1" : "**-- General Commands --**",
+               "info#2" : "Please note that all Usernames must be Case Sensitive```",
+               "!help" : " (command) - Displays information on every command or a particular command",
+               "!add" : " - Adds you to the ranked queue",
+               "!remove" : " - Removes you from the ranked queue",
+               "!q" : " - Lists the players currently in queue",
+               "!top" : " (x) - Lists the top 10 players, starting at x (default 0)",
+               "!leaderboard" : "- Displays the leaderboard",
+               "!rank" : " (Username/@mention) - Displays the user's current rank (defaults to sender)",
+               "!stats" : " (Username/@mention) - Displays some more details on user (defaults to sender)",
+               "info#3" : "```**-- Tools --**```",
+               "!name" : " [Username] - Changes your nickname, and registers your new Username to the bot",
+               "info#4" : "```**-- Admin --**```",
+               "!record" : " A1,A2,A3,win,B1,B2,B3 - Records a win for the A players, use wint for Tournament matches",
+               "!clearQueue" : " - Empties the Queue",
+               "!flagIDs" : " - Lists Flag IDs and their definition",
+               "!addFlag" : " [Username] [flag] - Adds a flag to a user",
+               "!removeFlag" : " [Username] [flag]- Removes a flag from a user",
+               "info#5" : "```"
+}
+
+helpMessageStringList = []
+for k in helpMessageKeys:
+        if '#' in k:
+                helpMessageStringList.append(helpMessage[k])
+        else:
+                helpMessageStringList.append(k+helpMessage[k])
+helpMessageString = "\n".join(helpMessageStringList)
+                                
 
 #
 # Define Containers
@@ -165,6 +180,16 @@ def isAdmin(authorID, reqPerms):
                        return True
         return False
 
+def playerExists(playerID):
+        if playerID in playersLookup:
+                return True
+        return False
+
+def isAllowedChannel(channelID):
+        if channelID in botAllowedChannels:
+                return True
+        return False
+
 #
 # Create Bot
 #
@@ -174,11 +199,27 @@ for filename in os.listdir("players"):
         loadPlayerData(pUsername)
 bot = commands.Bot(command_prefix='!')
 bot.remove_command("help")
+
 f = open("token.txt","r")
 token = f.readline().rstrip()
 f.close()
 
-matchHistoryChannel = []
+botAllowedChannels = []
+botMatchHistoryChannels = []
+currentFlag = ""
+f = open("channels.txt","r")
+for line in f.readlines():
+        l = line.split("/")[0].rstrip()
+        if l[0] == "[" and l[len(l)-1] == "]":
+                currentFlag = l[1:-1]
+        else:
+                l = l.replace(" ","")
+                if l.isdigit():
+                        if currentFlag == "Allowed":
+                                botAllowedChannels.append(l)
+                        elif currentFlag == "Match History":
+                                botMatchHistoryChannels.append(l)
+f.close()
 
 @bot.event
 async def on_ready():
@@ -186,12 +227,25 @@ async def on_ready():
         for discordServer in bot.servers:
                 for channel in discordServer.channels:
                         if channel.name == "match-history":
-                                matchHistoryChannel.append(channel)
+                                botMatchHistoryChannels.append(channel)
 
 # !help - Usage !help
-@bot.command()
-async def help():
-        await bot.say(helpMessage)
+@bot.command(pass_context = True)
+async def help(context, *args):
+        cmd = ""
+        if len(list(args)) > 0:
+                cmd = args[0]
+                if cmd[0] != '!':
+                        cmd = "!" + cmd
+        if not isAllowedChannel(context.message.channel.id):
+                return
+        if cmd == "":
+                await bot.say(helpMessageString)
+        elif cmd in helpMessageKeys and '#' not in cmd:
+                await bot.say(cmd + helpMessage[cmd])
+        else:
+                await bot.say("Unknown command: " + cmd)
+
 
 # !perms - Usage !perms
 @bot.command(pass_context = True)
@@ -229,7 +283,7 @@ async def name(context, *args):
 # !add - Usage !add
 @bot.command(pass_context = True)
 async def add(context):
-        if context.message.author.id not in playersLookup:
+        if not playerExists(context.message.author.id) or not isAllowedChannel(context.message.channel.id):
                 return
         pUsername = playersLookup[context.message.author.id]
         if pUsername in queue:
@@ -256,7 +310,7 @@ async def add(context):
 # !remove - Usage !remove
 @bot.command(pass_context = True)
 async def remove(context):
-        if context.message.author.id not in playersLookup:
+        if not playerExists(context.message.author.id) or not isAllowedChannel(context.message.channel.id):
                 return
         pUsername = playersLookup[context.message.author.id]
         if pUsername in queue:
@@ -266,12 +320,12 @@ async def remove(context):
 # !q - Usage !q
 @bot.command()
 async def q():
-        await bot.say("Queue (" + str(len(queue))+"/6): `[" + ", ".join(queue) +"]`")
+        await bot.say("Queue (" + str(len(queue))+"/6): `[" + ", ".join(queue) +"]`")  
 
 # !clearQueue - Usage !clearQueue
 @bot.command(pass_context = True)
 async def clearQueue(context):
-        if isAdmin(context.message.author.id, 1) == False or len(queue) == 0:
+        if not isAdmin(context.message.author.id, 1) or not isAllowedChannel(context.message.channel.id) or len(queue) == 0:
                 return
         for p in reversed(range(len(queue))):
                 queue.pop(p)
@@ -279,8 +333,10 @@ async def clearQueue(context):
         
         
 # !top - Usage !top (x)
-@bot.command()
-async def top(*args):
+@bot.command(pass_context = True)
+async def top(context, *args):
+        if not isAllowedChannel(context.message.channel.id):
+                return
         start = 1
         if len(args) > 0:
                 args = list(args)
@@ -305,9 +361,32 @@ async def top(*args):
         else:
                 await bot.say("There are no leaderboard entries starting at #" + str(start))
 
-# !giveMeTheWholeLeaderboard
-@bot.command()
-async def giveMeTheWholeLeaderboard():
+# !leaderboard - Usage !leaderboard
+@bot.command(pass_context = True)
+async def leaderboard(context):
+        if not isAllowedChannel(context.message.channel.id):
+                return
+        newLeaderboard = createLeaderboard(players)
+        displayedLeaderboard = []
+        i=1
+        actualRank = 1
+        displayedRank = 1
+        currentScore = newLeaderboard[0][1]
+        for value in newLeaderboard:
+                if value[1] < currentScore:
+                        currentScore = value[1]
+                        displayedRank = actualRank
+                actualRank = actualRank + 1
+                displayedLeaderboard.append("#"+str(displayedRank)+" ["+str(value[1])+"] - "+value[0])
+                i = i + 1
+        await bot.say("```" + "\n".join(displayedLeaderboard).rstrip() + "```")
+
+
+# !giveMeTheWholeLeaderboard - Alternate form of !leaderboard
+@bot.command(pass_context = True)
+async def giveMeTheWholeLeaderboard(context):
+        if not isAllowedChannel(context.message.channel.id):
+                return
         newLeaderboard = createLeaderboard(players)
         displayedLeaderboard = []
         i=1
@@ -352,6 +431,8 @@ async def rank(context, *args):
 # !stats - Usage: !stats, !stats Username, !stats @DiscordMember
 @bot.command(pass_context = True)
 async def stats(context, *args):
+        if not isAllowedChannel(context.message.channel.id):
+                return
         args = list(args)
         pUsername = getUsername(context.message.author.id, args)
         if pUsername == None:
@@ -445,7 +526,7 @@ async def record(context, *args):
         await bot.say("`" + ", ".join(winners) + "`\n**Win VS**\n`" + ", ".join(losers) + "`\n\n" + tournamentString + "Match Recorded. Elo Changes:\n```" + "\n".join(eloChange).rstrip() + "```")
         for p in matchPlayers:
                 savePlayerData(p)
-        for channel in matchHistoryChannel:
+        for channel in botMatchHistoryChannels:
                 await bot.send_message(channel, "```" + context.message.content + "```")
 
 # !sortTeams - Usage !sortTeams @DiscordRole role
