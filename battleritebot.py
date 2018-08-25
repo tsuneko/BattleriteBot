@@ -10,22 +10,20 @@ from functools import reduce
 
 # Definition of Tournament Flags
 tournamentFlags = {
-        "1" : "BattleCult Week #1 - 1st",
-        "2" : "BattleCult Week #1 - Participated",
-        "4" : "BattleCult Week #2 - 1st",
-        "8" : "BattleCult Week #2 - Participated",
-        "16" : "BattleCult Week #3 - 1st",
-        "32" : "BattleCult Week #3 - Participated",
-        "64" : "BattleCult Week #3 - Caster",
-        "128" : "BattleCult Week #4 - 1st",
-        "256" : "BattleCult Week #4 - Participated",
-        "512" : "BattleCult Week #4 - Caster",
-        "1024" : "BattleCult Week #5 - 1st",
-        "2048" : "BattleCult Week #5 - Participated",
-        "4096" : "BattleCult Week #5 - Caster",
-        "8192" : "BattleCult Week #5+ - 1st",
-        "16384" : "BattleCult Week #5+ - Participated",
-        "32768" : "BattleCult Week #5+ - Caster"
+        "0" : "BattleCult Week #1 - 1st",
+        "1" : "BattleCult Week #1 - Participated",
+        "2" : "BattleCult Week #2 - 1st",
+        "3" : "BattleCult Week #2 - Participated",
+        "4" : "BattleCult Week #3 - 1st",
+        "5" : "BattleCult Week #3 - Participated",
+        "6" : "BattleCult Week #3 - Caster",
+        "7" : "BattleCult Week #4 - 1st",
+        "8" : "BattleCult Week #4 - Participated",
+        "9" : "BattleCult Week #4 - Caster",
+        "10" : "BattleCult Week #5 - 1st",
+        "11" : "BattleCult Week #5 - Participated",
+        "12" : "BattleCult Week #5+ - 1st",
+        "13" : "BattleCult Week #5+ - Participated",
 }
 
 # Definition of Permissions Level
@@ -186,7 +184,7 @@ def playerExists(playerID):
         return False
 
 def isAllowedChannel(channelID):
-        if channelID in botAllowedChannels:
+        if channelID in botAllowedChannelsIDs:
                 return True
         return False
 
@@ -204,6 +202,8 @@ f = open("token.txt","r")
 token = f.readline().rstrip()
 f.close()
 
+botAllowedChannelsIDs = []
+botMatchHistoryChannelsIDs = []
 botAllowedChannels = []
 botMatchHistoryChannels = []
 currentFlag = ""
@@ -216,9 +216,9 @@ for line in f.readlines():
                 l = l.replace(" ","")
                 if l.isdigit():
                         if currentFlag == "Allowed":
-                                botAllowedChannels.append(l)
+                                botAllowedChannelsIDs.append(l)
                         elif currentFlag == "Match History":
-                                botMatchHistoryChannels.append(l)
+                                botMatchHistoryChannelsIDs.append(l)
 f.close()
 
 @bot.event
@@ -226,7 +226,9 @@ async def on_ready():
         print("Connected as: " + bot.user.name + " ID: " + str(bot.user.id))
         for discordServer in bot.servers:
                 for channel in discordServer.channels:
-                        if channel.name == "match-history":
+                        if channel.id in botAllowedChannelsIDs:
+                                botAllowedChannels.append(channel)
+                        if channel.id in botMatchHistoryChannelsIDs:
                                 botMatchHistoryChannels.append(channel)
 
 # !help - Usage !help
@@ -246,7 +248,15 @@ async def help(context, *args):
         else:
                 await bot.say("Unknown command: " + cmd)
 
-
+# !ask
+@bot.command(pass_context = True)
+async def ask(context):
+        if random.randint(0,1) == 0:
+                await bot.say("No.")
+        else:
+                await bot.say("Yes.")
+        
+        
 # !perms - Usage !perms
 @bot.command(pass_context = True)
 async def perms(context):
@@ -455,11 +465,9 @@ async def stats(context, *args):
                 
         pTournamentFlags = int(players[pUsername]["tournamentFlags"])
         pTournamentResults = []
-        pTournamentFlag = 1
-        for _ in range(len(tournamentFlags)):
-                if pTournamentFlag & pTournamentFlags:
-                        pTournamentResults.append(tournamentFlags[str(pTournamentFlag)])
-                pTournamentFlag = pTournamentFlag * 2
+        for f in range(len(tournamentFlags)):
+                if 2**f & pTournamentFlags:
+                        pTournamentResults.append(tournamentFlags[str(f)])
         pTournamentResultsString = ""
         if len(pTournamentResults) > 0:
                 pTournamentResultsString = "\n".join(pTournamentResults) + "\n"
@@ -569,11 +577,9 @@ async def flagIDs(context):
         if context.message.author.id in playersLookup:
                 if int(players[playersLookup[context.message.author.id]]["permissionsLevel"]) < 2:
                        return
-        f = 1
         flags = []
-        for _ in range(len(tournamentFlags)):
+        for f in range(len(tournamentFlags)):
                 flags.append("#" + str(f) + " - " + tournamentFlags[str(f)])
-                f = f * 2
         await bot.say("Flag IDs:\n```" + "\n".join(flags) + "```")
 
 # !addFlag - Usage: !addFlag flag, !addFlag Username flag, !addFlag @DiscordMember flag
@@ -586,17 +592,15 @@ async def addFlag(context, *args):
         pTournamentFlags = int(players[pUsername]["tournamentFlags"])
         fFlag = args[-1]
         pFlags = []
-        pFlag = 1
-        for _ in range(len(tournamentFlags)):
-                if pFlag & pTournamentFlags:
-                        pFlags.append(str(pFlag))
-                pFlag = pFlag * 2
+        for f in range(len(tournamentFlags)):
+                if 2**f & pTournamentFlags:
+                        pFlags.append(str(f))
         if fFlag not in pFlags and fFlag in tournamentFlags:
                 pFlags.append(fFlag)
         else:
                 return
         if len(pFlags) > 0:
-                players[pUsername]["tournamentFlags"] = str(reduce(or_, list(map(int, pFlags))))
+                players[pUsername]["tournamentFlags"] = str(reduce(or_, list(map(lambda x: 2**int(x), pFlags))))
                 savePlayerData(pUsername)
         await bot.say("Added Flag: [" + tournamentFlags[fFlag] + "] to " + pUsername)
 
@@ -610,17 +614,15 @@ async def removeFlag(context, *args):
         pTournamentFlags = int(players[pUsername]["tournamentFlags"])
         fFlag = args[-1]
         pFlags = []
-        pFlag = 1
-        for _ in range(len(tournamentFlags)):
-                if pFlag & pTournamentFlags:
-                        pFlags.append(str(pFlag))
-                pFlag = pFlag * 2
+        for f in range(len(tournamentFlags)):
+                if 2**f & pTournamentFlags:
+                        pFlags.append(str(f))
         if fFlag in pFlags:
                 pFlags.remove(fFlag)
         else:
                 return
         if len(pFlags) > 0:
-                players[pUsername]["tournamentFlags"] = str(reduce(or_, list(map(int, pFlags))))
+                players[pUsername]["tournamentFlags"] = str(reduce(or_, list(map(lambda x: 2**int(x), pFlags))))
         else:
                 players[pUsername]["tournamentFlags"] = "0"
         savePlayerData(pUsername)
@@ -631,6 +633,10 @@ async def removeFlag(context, *args):
 async def setPerms(context, *args):
         args = list(args)
         pUsername = getUsername(context.message.author.id, args, 1)
+        if len(args) > 1:
+                level = args[-1]
+        else:
+                return
         if isAdmin(context.message.author.id, 3) == False or pUsername == playersLookup[context.message.author.id] or level not in permissionsLevel:
                 return
         players[pUsername]["permissionsLevel"] = str(level)
