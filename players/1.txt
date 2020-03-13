@@ -1,0 +1,15 @@
+username = Alpha
+ID = 1001
+can_submit = True
+1v1_mmr = [1500]
+1v1_matches = []
+2v2_mmr = [1500]
+2v2_matches = []
+3v3_mmr = [1500]
+3v3_matches = []
+1v1_enabled = False
+2v2_enabled = False
+3v3_enabled = False
+teams = []
+titles = []
+current_title = None
