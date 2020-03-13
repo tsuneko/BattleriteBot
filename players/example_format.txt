@@ -1,5 +1,5 @@
 username = Alpha
-ID = 1001
+ID = DISCORD_ID_HERE
 can_submit = True
 1v1_mmr = [1500]
 1v1_matches = []
