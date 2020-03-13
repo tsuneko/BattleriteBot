@@ -1,4 +1,0 @@
-[Allowed]
-channelID // Comment
-[Match History]
-matchHistoryChannelID
