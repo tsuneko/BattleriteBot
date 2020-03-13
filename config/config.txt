@@ -1,0 +1,7 @@
+token=INSERT_TOKEN
+prefix=!
+maps_pool=[Mount Araz (Day),Mount Araz (Night),Blackstone Arena (Day),Blackstone Arena (Night),Dragon Garden (Day),Dragon Garden (Night),Daharin Battlegrounds (Day),Daharin Battlegrounds (Night),The Great Market (Day),The Great Market (Night),Meriko Summit (Night)]
+maps_off_pool=[Sky Ring (Day), Meriko Summit (Day), Orman Temple (Day), Orman Temple (Night), Misty Woods (Day), Misty Woods (Night)]
+channels=[INSERT_CHANNEL_ID]
+matchfeed=INSERT_CHANNEL_ID
+admins=[INSERT_USER_ID]
