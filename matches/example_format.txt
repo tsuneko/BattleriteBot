@@ -1,0 +1,7 @@
+time = 2020-02-24 23:15:34
+submit_by = DISCORD_USER_ID
+score = [3,0]
+teamA = [DISCORD_USER_ID]
+teamB = [DISCORD_USER_ID_2]
+DISCORD_USER_ID = [1500,0]
+DISCORD_USER_ID_2 = [1500,0]
