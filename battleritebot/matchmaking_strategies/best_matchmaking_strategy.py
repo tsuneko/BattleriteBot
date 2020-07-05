@@ -18,7 +18,7 @@ class BestMatchmakingStrategy(MatchmakingStrategy):
         total_elo = sum(map(lambda e: get_mmr(e, match_format), truncated_players))
         team_a_elo = sum(map(lambda e: get_mmr(e, match_format), team_combination))
         team_b_elo = total_elo - team_a_elo
-        return absolute(team_a_elo - team_b_elo)
+        return abs(team_a_elo - team_b_elo)
 
     def assign_teams(self, match: Match):
         truncated_players = players[0: (match.format * 2) - 1]
