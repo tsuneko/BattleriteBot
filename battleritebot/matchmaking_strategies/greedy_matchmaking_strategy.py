@@ -14,6 +14,6 @@ class GreedyMatchmakingStrategy(MatchmakingStrategy):
 
     def assign_teams(self, match: Match):
         sorted_players = match.players.copy().sort(reverse=True, key=lambda e: get_mmr(e, match_format))
-        for i in range(match.match_format):
+        for i in range(0, match.match_format * 2, 2):
             match.teamA.append([sorted_players[i].username, sorted_players[i].mmr[match.match_format - 1][-1], 0])
             match.teamB.append([sorted_players[i+1].username, sorted_players[i+1].mmr[match.match_format - 1][-1], 0])

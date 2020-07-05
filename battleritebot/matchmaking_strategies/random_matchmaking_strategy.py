@@ -8,6 +8,6 @@ class RandomMatchmakingStrategy(MatchmakingStrategy):
 
     def assign_teams(self, match: Match):
         shuffled_players = shuffle(match.players.copy().sort())
-        for i in range(match.match_format):
+        for i in range(0, match.match_format * 2, 2):
             match.teamA.append([shuffled_players[i].username, shuffled_players[i].mmr[match.match_format - 1][-1], 0])
             match.teamB.append([shuffled_players[i+1].username, shuffled_players[i+1].mmr[match.match_format - 1][-1], 0])
