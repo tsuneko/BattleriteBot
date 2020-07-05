@@ -354,7 +354,7 @@ async def create_match_pug(match_players_ids):
             mentions.append(user.mention)
     match = Match(match_players, mentions)
     match_map = random.choice(config["maps_pool"])
-    match.create_pug(match_map)
+    match.create_pug(match_map, matchmaking_strategy)
     return match
 
 # Commands
