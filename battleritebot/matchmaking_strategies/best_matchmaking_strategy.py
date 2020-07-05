@@ -27,7 +27,7 @@ class BestMatchmakingStrategy(MatchmakingStrategy):
         best_team_a = min(team_a_combinations, key=lambda e: get_absolute_elo_difference(e, truncated_players))
         best_team_a_ids = map(lambda e: e.getId(), best_team_a)
 
-        best_team_b = filter(lambda e: e.get_id() not in best_team_a_ids))
+        best_team_b = filter(lambda e: e.get_id() not in best_team_a_ids, truncated_players)
 
         for i in range(match.match_format):
             match.teamA.append([best_team_a[i].username, best_team_a[i].mmr[match.match_format - 1][-1], 0])
