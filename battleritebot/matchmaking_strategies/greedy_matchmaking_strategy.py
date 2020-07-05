@@ -7,7 +7,7 @@ assigning the best remaining player to each team at each stage of a draft style 
 
 E.g. in the case of 3v3's: {1,3,6} {2,4,5} for sorted teams.
 """
-class DraftMatchmakingStrategy(MatchmakingStrategy):
+class GreedyMatchmakingStrategy(MatchmakingStrategy):
     
     def get_mmr(player : Player, match_format : int):
         return player.get_mmr()[match_format - 1]
