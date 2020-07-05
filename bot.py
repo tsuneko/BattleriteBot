@@ -13,6 +13,11 @@ from battleritebot.player import Player
 from battleritebot.message import Message
 from battleritebot.match import Match
 from battleritebot.match_result import MatchResult
+from matchmaking_strategies import MatchmakingStrategy
+from matchmaking_strategies import BestMatchmakingStrategy
+from matchmaking_strategies import GreedyMatchmakingStrategy
+from matchmaking_strategies import RandomMatchmakingStrategy
+from matchmaking_strategies import VariedStrategyMatchmakingStrategy
 
 _VERSION = "0.1"
 _3V3 = 2
@@ -21,6 +26,7 @@ _1V1 = 0
 
 print("Started BattleriteBot Version " + _VERSION + "\n")
 
+matchmaking_strategy = BestMatchmakingStrategy()
 channels = {}
 players = {}
 usernameLookup = {}
@@ -191,6 +197,16 @@ def update_queues(player_id, player_queues, forced = 0):
             return match_players
     return []
 
+def set_matchmaking_strategy(sanitized_strategy_name: str):
+    if (sanitized_strategy_name == "greedy"):
+        matchmaking_strategy = GreedyMatchmakingStrategy()
+    elif (sanitized_strategy_name == "best"):
+        matchmaking_strategy = BestMatchmakingStrategy()
+    elif (sanitized_strategy_name == "random"):
+        matchmaking_strategy = RandomMatchmakingStrategy()
+    elif (sanitized_strategy_name == "variedstrategy"):
+        matchmaking_strategy = VariedStrategyMatchmakingStrategy()
+
 # Feedback
 
 async def new_player_help(context):
@@ -342,6 +358,19 @@ async def create_match_pug(match_players_ids):
     return match
 
 # Commands
+@commands.check(is_admin)
+@bot.command(aliases = ["ms"])
+async def matchmaking_strategy(context, *args):
+    if await incorrect_number_of_args(context, args, 1, 1):
+        return
+    sanitized_strategy_name = args[0].strip().lower()
+
+    if sanitized_strategy_name not in ["greedy", "best" "random", "variedstrategy"]:
+        await context.send("Invalid matchmaking strategy name, expected one of: [greedy, best, random, variedstrategy]")
+        return
+    
+    set_matchmaking_strategy(sanitized_strategy_name)
+    await context.send("Invalid matchmaking strategy name, expected one of: [greedy, best, random, variedstrategy]")
 
 @bot.command()
 async def version(context):

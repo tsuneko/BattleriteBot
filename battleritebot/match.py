@@ -1,5 +1,6 @@
 from battleritebot.player import Player
 from battleritebot.message import Message
+from matchmaking_strategies import MatchmakingStrategy
 from datetime import datetime
 
 buttonsLookup = {
@@ -28,7 +29,7 @@ class Match(Message):
         self.match_format_string = str(self.match_format) + "v" + str(self.match_format)
         self.status = "init"
 
-    def create_pug(self, match_map):
+    def create_pug(self, match_map, matchmaking_strategy : MatchmakingStrategy):
         self.map = match_map
         if self.match_format == 3:
             self.ws = 5
@@ -42,20 +43,12 @@ class Match(Message):
         # Team selection process
         self.teamA = []
         self.teamB = []
-        for player_id in self.players:
-            if len(self.teamA) < self.match_format:
-                self.teamA.append([player_id])
-            else:
-                self.teamB.append([player_id])
+
+        matchmaking_strategy.assign_teams(self)
 
         print(self.teamA)
         print(self.teamB)
 
-        for i in range(self.match_format):
-            playerA = self.players[self.teamA[i][0]]
-            playerB = self.players[self.teamB[i][0]]
-            self.teamA[i] += [playerA.username, playerA.mmr[self.match_format-1][-1], 0]
-            self.teamB[i] += [playerB.username, playerB.mmr[self.match_format-1][-1], 0]
         self.set_buttons(["A", "B", "Decline"])
         self.status = "match"
         self.update_match_page()
