@@ -370,7 +370,7 @@ async def matchmaking_strategy(context, *args):
         return
     
     set_matchmaking_strategy(sanitized_strategy_name)
-    await context.send("Invalid matchmaking strategy name, expected one of: [greedy, best, random, variedstrategy]")
+    await context.send("Changed matchmaking strategy to " + sanitized_strategy_name)
 
 @bot.command()
 async def version(context):
